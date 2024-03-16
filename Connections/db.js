@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import { vars } from '../secrets.js';
-console.log(vars.mongoDbUrl);
 
 const connectDB = async () => {
 	console.log('Connecting to MongoDB');

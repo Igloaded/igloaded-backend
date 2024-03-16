@@ -18,12 +18,8 @@ const port = vars.port;
 connectDB();
 
 const RequestUrl = [
-	'http://localhost:5173',
-	'http://localhost:5011',
+	'http://172.28.112.1:5174',
 	'https://www.igloaded.com',
-	'https://igloaded.com',
-	'www.igloaded.com',
-	'https://igloaded-frontend.vercel.app',
 ];
 
 app.set('trust proxy', 1);

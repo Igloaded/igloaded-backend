@@ -22,6 +22,7 @@ export const createPayment = async (req, res) => {
 		options,
 		(err, order) => {
 			if (err) {
+				console.log('hii');
 				console.log(err);
 				return res.status(500).json(err);
 			} else {

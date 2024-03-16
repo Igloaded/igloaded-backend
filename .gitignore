@@ -3,3 +3,4 @@ newapi.js
 node_modules
 ProtectedData
 .vercel
+ssh-keys

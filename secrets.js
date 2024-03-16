@@ -43,4 +43,7 @@ export const vars = {
 	powerfetcherId: String(
 		process.env.POWERFETCHER_ID
 	),
+	apiprofiToken: String(
+		process.env.APIPROFI_TOKEN
+	),
 };

@@ -7,7 +7,6 @@ import {
 import { InstaScript } from './InstaScraper.js';
 import TrackReel from '../../Models/trackReelModel.js';
 import User from '../../Models/userModel.js';
-import { ValidateToken } from '../../Middlewares/Users.js';
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import {
 	addToEpoch,
@@ -24,20 +23,12 @@ import { isImageAvailable } from '../RemoveCors/Cloudinaryfunc.js';
 const googleAuthFile = JSON.parse(vars.authFile);
 
 const getReelMetadata = async (shortcode) => {
+	console.log(vars.apiprofiToken);
 	const options = {
 		method: 'GET',
-		// url: `https://instagram-data14.p.rapidapi.com/web/media/${shortcode}/info`,
-		url: 'https://instagram-scraper-2022.p.rapidapi.com/ig/post_info/',
-		params: {
-			shortcode: shortcode,
-		},
+		url: `https://apiprofi.com/api/post_info/?shortcode=${shortcode}`,
 		headers: {
-			'X-RapidAPI-Key': vars.rapidApiKey1,
-			'X-RapidAPI-Host': vars.rapidApiHost1,
-			'Cache-Control':
-				'no-cache, no-store, must-revalidate',
-			Pragma: 'no-cache',
-			Expires: '0',
+			Authorization: `Bearer ${vars.apiprofiToken}`,
 		},
 	};
 	try {
@@ -79,20 +70,14 @@ const getProfileMetadata = async (shortcode) => {
 	console.log(shortcode);
 	const options = {
 		method: 'GET',
-		// url: `https://instagram-data14.p.rapidapi.com/web/users/${shortcode}/usernameinfo`,
-		url: 'https://instagram-scraper-2022.p.rapidapi.com/ig/info_username/',
-		params: {
-			user: shortcode,
-		},
+		url: `https://apiprofi.com/api/info_username/?user=${shortcode}`,
 		headers: {
-			'X-RapidAPI-Key': vars.rapidApiKey1,
-			'X-RapidAPI-Host': vars.rapidApiHost1,
+			Authorization: `Bearer ${vars.apiprofiToken}`,
 		},
 	};
 
 	try {
 		const response = await axios.request(options);
-		// console.log(response.data.user);
 		return response.data.user;
 	} catch (error) {
 		console.error(error);
