@@ -19,6 +19,7 @@ import {
 	addPromocode,
 	addUsername,
 	removeUsername,
+	getAvlReels,
 } from '../Controllers/Users/user.js';
 import {
 	limiter,
@@ -71,8 +72,9 @@ router.delete(
 
 router.use(checkBlocked);
 router.use(perFormPlanReset);
-router.use(performLimitReset);
+// router.use(performLimitReset);
 router.get('/getplan', getPlanDetails);
+router.post('/getreelinfo', getAvlReels);
 router.patch('/changepassword', changePassword);
 router.patch('/username/add', addUsername);
 router.patch('/username/remove', removeUsername);

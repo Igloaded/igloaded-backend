@@ -11,13 +11,8 @@ export const resetDailyLimits = async (id) => {
 	if (!userToReset) {
 		throw new Error('User not found');
 	}
-	const currentEpoch = epochCurrent('ms');
 	const newResetEpoch = addToEpoch(1);
-	userToReset.limits.dailyScanCount = 0;
-	userToReset.limits.dailySearchCount = 0;
-	userToReset.limits.lastScanReset = newResetEpoch;
-	userToReset.limits.lastSearchReset =
-		newResetEpoch;
+	userToReset.limits.lastScanReset = newResetEpoch; // I've changed this where from now It won't be resetting dailyCount Attr.
 	userToReset.limits.lastReelReset = newResetEpoch;
 	userToReset.markModified('limits');
 	const resp = await userToReset.save();
@@ -43,6 +38,7 @@ export const resetPlan = async (id) => {
 		isExtensionEnabled: false,
 		extensionUsernames: [],
 		maxUsernames: 1,
+		creditsPerScan: 10,
 	};
 	userToReset.markModified('plan');
 	userToReset.markModified('limits');
@@ -68,8 +64,8 @@ export const resetPlan = async (id) => {
 				'limits.dailySearchCount': 0,
 				'limits.lastSearchReset': newResetEpoch,
 				'limits.isRequestScanningEnabled': true,
-				'limits.maxScanPerDay': 10,
-				'limits.maxScanPerMonth': 300,
+				'limits.maxScanPerDay': 3,
+				'limits.maxScanPerMonth': 3,
 				'limits.lastScanReset': newResetEpoch,
 			},
 		}
@@ -145,18 +141,19 @@ export const setPlan = async (
 					'plan.extensionUsernames':
 						extensionUsernames,
 					'plan.maxUsernames': 1,
+					'plan.creditsPerScan': 2,
 					'limits.isReelTrackingEnabled': true,
-					'limits.maxReelsPerDay': 200,
-					'limits.maxReelsPerMonth': 200,
+					'limits.maxReelsPerDay': 45000,
+					'limits.maxReelsPerMonth': 45000,
 					'limits.lastReelReset': currentEpoch,
 					'limits.isSearchingEnabled': true,
-					'limits.maxSearchPerDay': 500,
-					'limits.maxSearchPerMonth': 500,
+					'limits.maxSearchPerDay': 1000,
+					'limits.maxSearchPerMonth': 1000,
 					'limits.dailySearchCount': 0,
 					'limits.lastSearchReset': currentEpoch,
 					'limits.isRequestScanningEnabled': true,
-					'limits.maxScanPerDay': 300,
-					'limits.maxScanPerMonth': 1000,
+					'limits.maxScanPerDay': 199,
+					'limits.maxScanPerMonth': 199,
 					'limits.dailyScanCount': 0,
 					'limits.lastScanReset': currentEpoch,
 				},
@@ -180,23 +177,22 @@ export const setPlan = async (
 					'plan.planPurchaseDate': currentEpoch,
 					'plan.planExpiry': planExpiry,
 					'plan.planPrice': planPrice,
-					'plan.isExtensionEnabled':
-						isExtensionEnabled,
-					'plan.extensionUsernames':
-						extensionUsernames,
-					'plan.maxUsernames': 1,
+					'plan.isExtensionEnabled': false,
+					'plan.extensionUsernames': [],
+					'plan.maxUsernames': 0,
+					'plan.creditsPerScan': 5,
 					'limits.isReelTrackingEnabled': true,
-					'limits.maxReelsPerDay': 75,
-					'limits.maxReelsPerMonth': 75,
+					'limits.maxReelsPerDay': 10000,
+					'limits.maxReelsPerMonth': 10000,
 					'limits.lastReelReset': currentEpoch,
 					'limits.isSearchingEnabled': true,
-					'limits.maxSearchPerDay': 300,
-					'limits.maxSearchPerMonth': 300,
+					'limits.maxSearchPerDay': 450,
+					'limits.maxSearchPerMonth': 450,
 					'limits.dailySearchCount': 0,
 					'limits.lastSearchReset': currentEpoch,
 					'limits.isRequestScanningEnabled': true,
-					'limits.maxScanPerDay': 10,
-					'limits.maxScanPerMonth': 300,
+					'limits.maxScanPerDay': 50,
+					'limits.maxScanPerMonth': 50,
 					'limits.dailyScanCount': 0,
 					'limits.lastScanReset': currentEpoch,
 				},
@@ -219,9 +215,10 @@ export const setPlan = async (
 					'plan.planPurchaseDate': null,
 					'plan.planExpiry': null,
 					'plan.planPrice': 0,
+					'plan.creditsPerScan': 10,
 					'plan.isExtensionEnabled': false,
 					'plan.extensionUsernames': [],
-					'plan.maxUsernames': 1,
+					'plan.maxUsernames': 0,
 					'limits.isReelTrackingEnabled': false,
 					'limits.maxReelsPerDay': 0,
 					'limits.maxReelsPerMonth': 0,
@@ -232,8 +229,8 @@ export const setPlan = async (
 					'limits.dailySearchCount': 0,
 					'limits.lastSearchReset': currentEpoch,
 					'limits.isRequestScanningEnabled': true,
-					'limits.maxScanPerDay': 10,
-					'limits.maxScanPerMonth': 300,
+					'limits.maxScanPerDay': 3,
+					'limits.maxScanPerMonth': 3,
 					'limits.dailyScanCount': 0,
 					'limits.lastScanReset': currentEpoch,
 				},
@@ -256,13 +253,10 @@ export const isResetRequired = async (id) => {
 		throw new Error('User not found');
 	}
 	const currentEpoch = epochCurrent('ms');
-	const lastSearchReset =
-		user.limits.lastSearchReset;
 	const lastScanReset = user.limits.lastScanReset;
 	const lastReelReset = user.limits.lastReelReset;
 
 	if (
-		currentEpoch > lastSearchReset ||
 		currentEpoch > lastScanReset ||
 		currentEpoch > lastReelReset
 	) {
@@ -316,37 +310,10 @@ export const isScanningAllowed = async (id) => {
 	if (!user) {
 		throw new Error('User not found');
 	}
-
 	if (!user.limits.isRequestScanningEnabled) {
 		return {
 			success: false,
 			message: 'Scanning is disabled',
-		};
-	}
-
-	const dailyScanCount =
-		user.limits.dailyScanCount;
-	const maxScanPerDay = user.limits.maxScanPerDay;
-	const maxScanPerMonth =
-		user.limits.maxScanPerMonth;
-
-	if (
-		dailyScanCount >= maxScanPerDay &&
-		maxScanPerDay != maxScanPerMonth
-	) {
-		return {
-			success: false,
-			message: 'Daily scan limit exceeded',
-		};
-	}
-
-	if (
-		dailyScanCount >= maxScanPerDay &&
-		maxScanPerDay == maxScanPerMonth
-	) {
-		return {
-			success: false,
-			message: 'Monthly scan limit exceeded',
 		};
 	}
 	return {
@@ -355,4 +322,29 @@ export const isScanningAllowed = async (id) => {
 		credits: user.credits,
 		planName: user.plan.planName,
 	};
+
+	// const dailyScanCount =
+	// 	user.limits.dailyScanCount;
+	// const maxScanPerDay = user.limits.maxScanPerDay;
+	// const maxScanPerMonth =
+	// 	user.limits.maxScanPerMonth;
+	// if (
+	// 	dailyScanCount >= maxScanPerDay &&
+	// 	maxScanPerDay != maxScanPerMonth
+	// ) {
+	// 	return {
+	// 		success: false,
+	// 		message: 'Daily scan limit exceeded',
+	// 	};
+	// }
+
+	// if (
+	// 	dailyScanCount >= maxScanPerDay &&
+	// 	maxScanPerDay == maxScanPerMonth
+	// ) {
+	// 	return {
+	// 		success: false,
+	// 		message: 'Monthly scan limit exceeded',
+	// 	};
+	// }
 };

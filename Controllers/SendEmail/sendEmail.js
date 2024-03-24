@@ -308,3 +308,42 @@ export const billingInvoice = (Billdata) => {
 			});
 	});
 };
+
+export const sendReelCompleteMail = (
+	reelData
+) => {
+	const { email, title, spreadSheetLink } =
+		reelData;
+
+	const data = {
+		from: 'IGLoaded <postmaster@mail.igloaded.com>',
+		to: email,
+		subject: 'Batch Tracking Completed',
+		template: 'reel completed notification',
+		'h:X-Mailgun-Variables': JSON.stringify({
+			reelThumbnail: null,
+			reelTitle: title,
+			spreadsheetUrl: spreadSheetLink,
+		}),
+	};
+	return new Promise((resolve, reject) => {
+		mg
+			.messages()
+			.send(data, function (error, body) {
+				if (error) {
+					reject({
+						status: 400,
+						message:
+							'Something went wrong in sending mail',
+						error,
+					});
+				}
+				resolve({
+					status: 200,
+					message:
+						'Reel completed mail sent successfully',
+					body,
+				});
+			});
+	});
+};

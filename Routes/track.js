@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 
 import {
 	loginUser,
@@ -13,9 +14,8 @@ import {
 	getReelData,
 	getProfileData,
 	getStory,
-	scheduleNewReel,
-	UpdateSingleReel,
 	removeReel,
+	trackreels,
 } from '../Controllers/Track/InstaData.js';
 
 import {
@@ -34,9 +34,29 @@ import {
 	RemoveImages,
 	deleteSingleImage,
 } from '../Controllers/Cronjobs/RemoveImages.js';
-// import { UpdateAllReels } from '../Controllers/Cronjobs/UpdateAllReels.js';
+import { epochCurrent } from '../Reusables/getTimestamp.js';
 
 const router = express.Router();
+
+const storage = multer.diskStorage({
+	destination: (req, file, cb) => {
+		cb(null, 'Uploads/');
+	},
+	filename: (req, file, cb) => {
+		cb(
+			null,
+			file.fieldname +
+				'' +
+				epochCurrent('ms') +
+				'' +
+				file.originalname
+		);
+	},
+});
+
+const upload = multer({
+	storage: storage,
+}).single('txtfile');
 
 router.delete('/remove/allimages', RemoveImages);
 router.delete('/remove/image', deleteSingleImage);
@@ -44,10 +64,6 @@ router.delete('/remove/image', deleteSingleImage);
 router.use(checkBlocked);
 router.use(limitTrackRequest);
 router.get('/removecors', RemoveCors);
-router.post(
-	'/updatesinglereel',
-	UpdateSingleReel
-);
 
 router.use(perFormPlanReset);
 router.use(performLimitReset);
@@ -56,9 +72,13 @@ router.post('/login', loginUser);
 router.post('/logout', logout);
 router.get('/checklogin', checkLogin);
 router.post('/checkrequest', checkRequest);
-router.post('/tracknewreel', scheduleNewReel);
+// router.post('/tracknewreel', scheduleNewReel);
+router.post(
+	'/reels/trackall',
+	upload,
+	trackreels
+);
 router.use(limitTrackRequest);
-
 router.get(
 	'/getreeldata',
 	checkSearchLimit,

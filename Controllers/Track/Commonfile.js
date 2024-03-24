@@ -1,188 +1,281 @@
-import { google } from 'googleapis';
-import { vars } from '../../secrets.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import xlsx from 'xlsx';
+import { getReelMetadata } from './InstaData.js';
+import {
+	epochCurrent,
+	epochToDate,
+	epochToDateLocale,
+} from '../../Reusables/getTimestamp.js';
+import User from '../../Models/userModel.js';
+import TrackReel from '../../Models/trackReelModel.js';
+import {
+	RemoveCors,
+	uploadExcel,
+} from '../RemoveCors/Cloudinaryfunc.js';
+import { sendReelCompleteMail } from '../SendEmail/sendEmail.js';
 
-const googleAuthFile = JSON.parse(vars.authFile);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-export const createSpreadSheet = async (
-	sheetName,
-	userEmail
-) => {
-	const auth = new google.auth.GoogleAuth({
-		credentials: googleAuthFile,
-		scopes: [
-			'https://www.googleapis.com/auth/spreadsheets',
-			'https://www.googleapis.com/auth/drive',
-		],
-	});
-
-	const sheets = google.sheets({
-		version: 'v4',
-		auth: auth,
-	});
-
-	const spreadsheet =
-		await sheets.spreadsheets.create({
-			resource: {
-				properties: {
-					title: sheetName,
-				},
-			},
-		});
-
-	const spreadSheetUrl =
-		spreadsheet.data.spreadsheetUrl;
-
-	const spreadsheetId = spreadSheetUrl
-		.split('/d/')[1]
-		.split('/')[0];
-
-	const drive = google.drive({
-		version: 'v3',
-		auth: auth,
-	});
-
-	return new Promise((resolve, reject) => {
-		drive.permissions.list(
-			{
-				fileId: spreadsheetId,
-				fields: 'permissions(id,emailAddress)',
-			},
-			function (err, res) {
-				if (err) {
-					console.error(
-						'Error retrieving permissions:',
-						err
-					);
-					return reject({
-						status: 400,
-						message: 'Error retrieving permissions',
-						error: err,
-					});
-				}
-
-				const permissions = res.data.permissions;
-				const isShared = permissions.some(
-					(permission) =>
-						permission.role === 'writer' &&
-						permission.type === 'user' &&
-						permission.emailAddress === userEmail
-				);
-
-				if (!isShared) {
-					drive.permissions.create(
-						{
-							fileId: spreadsheetId,
-							requestBody: {
-								role: 'writer',
-								type: 'user',
-								emailAddress: userEmail,
-							},
-						},
-						function (err, res) {
-							if (err) {
-								console.error(
-									'Error sharing the spreadsheet:',
-									err
-								);
-								return reject({
-									status: 400,
-									message: 'Error sharing the spreadsheet',
-									error: err,
-								});
-							} else {
-								drive.permissions.create(
-									{
-										fileId: spreadsheetId,
-										requestBody: {
-											role: 'reader',
-											type: 'anyone',
-										},
-									},
-									function (err, res) {
-										if (err) {
-											console.error(
-												'Error sharing the spreadsheet:',
-												err
-											);
-											return reject({
-												status: 400,
-												message:
-													'Error sharing the spreadsheet',
-												error: err,
-											});
-										} else {
-											return resolve({
-												status: 200,
-												message:
-													'Spreadsheet shared successfully',
-												spreadsheetUrl: spreadSheetUrl,
-											});
-										}
-									}
-								);
-							}
-						}
-					);
-				} else {
-					console.log('Spreadsheet already shared');
-					return resolve({
-						status: 200,
-						message: 'Spreadsheet already shared',
-						spreadsheetUrl: spreadSheetUrl,
-					});
-				}
+const validateUrl = (URL) => {
+	if (URL != '') {
+		var regex =
+			/(?:https?:\/\/)?(?:www.)?instagram.com\/?([a-zA-Z0-9\.\_\-]+)?\/([p]+)?([reel]+)?([tv]+)?([stories]+)?\/([a-zA-Z0-9\-\_\.]+)\/?([0-9]+)?/gm;
+		const str = URL;
+		let m;
+		while ((m = regex.exec(str)) !== null) {
+			if (m.index === regex.lastIndex) {
+				regex.lastIndex++;
 			}
-		);
-	});
-};
-
-export const deleteSpreadSheet = async (
-	sheetId
-) => {
-	const auth = new google.auth.GoogleAuth({
-		credentials: googleAuthFile,
-		scopes: [
-			'https://www.googleapis.com/auth/drive',
-		],
-	});
-
-	const client = await auth.getClient();
-
-	const drive = google.drive({
-		version: 'v3',
-		auth: client,
-	});
-
-	return new Promise(async (resolve, reject) => {
-		try {
-			const resp = await drive.files.delete({
-				fileId: sheetId,
-			});
-			console.log(resp);
-			console.log(`Spreadsheet ${sheetId} deleted.`);
-			resolve({
-				status: 200,
-				message: 'Spreadsheet deleted successfully',
-			});
-		} catch (error) {
-			if (error.errors[0].reason === 'notFound') {
-				reject({
-					status: 400,
-					message: 'Spreadsheet not found',
-				});
-				console.error(
-					`Spreadsheet ${sheetId} not found.`
-				);
+			if (m[2] == 'p' && m[1] == undefined) {
+				return m[6];
+			} else if (
+				(m[3] == 'reel' || m[3] == 'reels') &&
+				m[1] == undefined
+			) {
+				return m[6];
 			} else {
-				reject({
-					status: 400,
-					message: 'Error deleting spreadsheet',
-					error: error,
-				});
-				console.error(
-					`Failed to delete spreadsheet: ${error}`
-				);
+				console.log('Invalid URL (2)');
+				return null;
 			}
 		}
-	});
+	} else {
+		console.log('Invalid URL (1)');
+	}
+};
+
+export const fetchReelData = async (
+	filename,
+	email,
+	uniqueId
+) => {
+	try {
+		const filePath = path.join(
+			__dirname,
+			'..',
+			'..',
+			'Uploads',
+			filename
+		);
+
+		if (!fs.existsSync(filePath)) {
+			console.error(
+				`File does not exist: ${filePath}`
+			);
+			return;
+		}
+
+		const data = fs.readFileSync(filePath, 'utf8');
+		const urls = data.split('\n');
+
+		const updateReel = await TrackReel.findOne({
+			id: uniqueId,
+		});
+		updateReel.totalIterations = urls.length;
+		await updateReel.save();
+
+		const user = await User.findOne({
+			email: email,
+		});
+
+		user.activity.reels =
+			user.activity.reels + urls.length;
+		user.limits.dailyReelCount =
+			user.limits.dailyReelCount + urls.length;
+		await user.save();
+
+		const workbook = xlsx.utils.book_new();
+		const worksheetData = [
+			[
+				'Username',
+				'Upload Date',
+				'Post Url',
+				'Views',
+				'Plays',
+				'Likes',
+				'Comment',
+				'Date Checked',
+			],
+		];
+
+		let isThumbnailSaved = false;
+
+		for (const url of urls) {
+			const shortcode = validateUrl(url);
+
+			let views,
+				plays,
+				likes,
+				comments,
+				username,
+				dateUploaded,
+				uploadDate,
+				dateChecked;
+
+			if (shortcode == null) {
+				console.log('Invalid URL');
+				return;
+			}
+
+			await new Promise((resolve) =>
+				setTimeout(resolve, 1000)
+			);
+
+			const response =
+				await getReelMetadata(shortcode);
+
+			if (
+				response.message == 'Page not found' ||
+				response.message ==
+					'This object was not found' ||
+				response.message ==
+					'This media has been deleted' ||
+				response.message == 'No reel found'
+			) {
+				username = 'failed';
+				dateUploaded = 'failed';
+				uploadDate = 'failed';
+				views = 0;
+				likes = 0;
+				plays = 0;
+				comments = 0;
+				dateChecked = epochToDateLocale(
+					epochCurrent('ms'),
+					'ms'
+				);
+				worksheetData.push([
+					username,
+					uploadDate,
+					url,
+					views,
+					plays,
+					likes,
+					comments,
+					dateChecked,
+				]);
+			} else {
+				if (!isThumbnailSaved) {
+					const updateThumbnail =
+						await TrackReel.findOne({
+							id: uniqueId,
+						});
+					RemoveCors(
+						response.display_url,
+						`${uniqueId}-${shortcode}`
+					)
+						.then(async (result) => {
+							updateThumbnail.thumbnail =
+								result.secure_url;
+							await updateThumbnail.save();
+						})
+						.catch((error) => {
+							console.error(
+								`Failed to process file: ${error}`
+							);
+						});
+					isThumbnailSaved = true;
+				}
+				username = response.owner.username;
+				dateUploaded = response.taken_at_timestamp;
+				uploadDate = epochToDate(dateUploaded, 's');
+				views = response.video_view_count;
+				likes =
+					response.edge_media_preview_like?.count ||
+					'Hidden';
+				plays = response.video_play_count;
+				comments =
+					response.edge_media_to_comment?.count ||
+					'Hidden';
+				dateChecked = epochToDateLocale(
+					epochCurrent('ms'),
+					'ms'
+				);
+				worksheetData.push([
+					username,
+					uploadDate,
+					url,
+					views,
+					plays,
+					likes,
+					comments,
+					dateChecked,
+				]);
+			}
+			const updateReel = await TrackReel.findOne({
+				id: uniqueId,
+			});
+			updateReel.iterationsCompleted =
+				updateReel.iterationsCompleted + 1;
+			await updateReel.save();
+		}
+		const worksheet = xlsx.utils.aoa_to_sheet(
+			worksheetData
+		);
+		xlsx.utils.book_append_sheet(
+			workbook,
+			worksheet,
+			'Sheet 1'
+		);
+		xlsx.writeFile(
+			workbook,
+			path.join(
+				__dirname,
+				'..',
+				'..',
+				'Xlxs',
+				`${uniqueId}.xlsx`
+			)
+		);
+
+		const addXlsx = path.join(
+			__dirname,
+			'..',
+			'..',
+			'Xlxs',
+			`${uniqueId}.xlsx`
+		);
+
+		uploadExcel(addXlsx)
+			.then(async (result) => {
+				const addXlsxUrl = await TrackReel.findOne({
+					id: uniqueId,
+				});
+				addXlsxUrl.fileUrl = result.secure_url;
+				addXlsxUrl.status = 'completed';
+				await addXlsxUrl.save();
+				fs.unlinkSync(filePath);
+				fs.unlinkSync(addXlsx);
+				console.log(
+					'Excel File processed successfully'
+				);
+
+				sendReelCompleteMail({
+					email,
+					title: uniqueId,
+					spreadSheetLink: result.secure_url,
+				})
+					.then((response) => {
+						console.log(
+							'Batch Completed Mail sent to user'
+						);
+					})
+					.catch((error) => {
+						console.error(
+							`Failed to send completed mail: ${error}`
+						);
+					});
+			})
+			.catch((error) => {
+				console.error(
+					`Failed to upload excel file to cloudinary: ${error}`
+				);
+			});
+	} catch (error) {
+		console.error(
+			`Failed to process file: ${error}`
+		);
+	}
 };

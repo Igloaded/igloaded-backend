@@ -1163,7 +1163,7 @@ export const getTrackedReels = async (
 	} else {
 		const documents = await TrackReel.find({
 			userEmail: user.email,
-			shortcode: { $regex: include, $options: 'i' },
+			title: { $regex: include, $options: 'i' },
 		});
 
 		if (documents.length == 0) {
@@ -1827,4 +1827,35 @@ export const removeUsername = async (
 			message: 'Feature not enabled',
 		});
 	}
+};
+
+export const getAvlReels = async (req, res) => {
+	const { email } = req.body;
+	const data = {};
+	if (!email) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'email is required',
+		});
+	}
+
+	const user = await User.findOne({ email });
+	if (!user) {
+		return res.status(400).json({
+			status: 'error',
+			message: 'Invalid Email',
+		});
+	}
+
+	data.isTrackingAllowed =
+		user.limits.isReelTrackingEnabled;
+	data.trackedReels = user.limits.dailyReelCount;
+	data.monthlyLimit = user.limits.maxReelsPerMonth;
+	data.dailyLimit = user.limits.maxReelsPerDay;
+
+	return res.status(200).json({
+		status: 'ok',
+		message: 'Reels fetched successfully',
+		info: data,
+	});
 };

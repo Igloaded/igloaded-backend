@@ -7,23 +7,17 @@ import {
 import { InstaScript } from './InstaScraper.js';
 import TrackReel from '../../Models/trackReelModel.js';
 import User from '../../Models/userModel.js';
-import { GoogleSpreadsheet } from 'google-spreadsheet';
 import {
 	addToEpoch,
 	epochCurrent,
 	epochToDate,
 } from '../../Reusables/getTimestamp.js';
-import { google } from 'googleapis';
-import {
-	createSpreadSheet,
-	deleteSpreadSheet,
-} from './Commonfile.js';
 import { isImageAvailable } from '../RemoveCors/Cloudinaryfunc.js';
+import { fetchReelData } from './Commonfile.js';
 
-const googleAuthFile = JSON.parse(vars.authFile);
-
-const getReelMetadata = async (shortcode) => {
-	console.log(vars.apiprofiToken);
+export const getReelMetadata = async (
+	shortcode
+) => {
 	const options = {
 		method: 'GET',
 		url: `https://apiprofi.com/api/post_info/?shortcode=${shortcode}`,
@@ -38,6 +32,13 @@ const getReelMetadata = async (shortcode) => {
 		if (
 			error.response.data.message ==
 			'This object was not found'
+		) {
+			return {
+				status: 400,
+				message: 'No reel found',
+			};
+		} else if (
+			error.response.data.message == 'Page not found'
 		) {
 			return {
 				status: 400,
@@ -468,317 +469,317 @@ export const getStory = async (req, res) => {
 	});
 };
 
-export const scheduleNewReel = async (
-	req,
-	res
-) => {
-	const {
-		shortcode,
-		totalIterations,
-		title,
-		email,
-		reelData,
-	} = req.body;
+// export const scheduleNewReel = async (
+// 	req,
+// 	res
+// ) => {
+// 	const {
+// 		shortcode,
+// 		totalIterations,
+// 		title,
+// 		email,
+// 		reelData,
+// 	} = req.body;
 
-	const {
-		username,
-		thumbnail,
-		uploadDate,
-		views,
-		likes,
-		plays,
-	} = reelData;
+// 	const {
+// 		username,
+// 		thumbnail,
+// 		uploadDate,
+// 		views,
+// 		likes,
+// 		plays,
+// 	} = reelData;
 
-	if (
-		!shortcode ||
-		!totalIterations ||
-		!title ||
-		!email
-	) {
-		return res.status(400).json({
-			status: 400,
-			message: 'Please recheck request body fields',
-		});
-	}
-	const token = req.userId;
-	let userData = await User.findById(token);
+// 	if (
+// 		!shortcode ||
+// 		!totalIterations ||
+// 		!title ||
+// 		!email
+// 	) {
+// 		return res.status(400).json({
+// 			status: 400,
+// 			message: 'Please recheck request body fields',
+// 		});
+// 	}
+// 	const token = req.userId;
+// 	let userData = await User.findById(token);
 
-	if (userData && userData.email != email) {
-		return res.status(400).json({
-			status: 400,
-			message:
-				'Invalid email - Impersonification attempt detected',
-		});
-	} else {
-		if (
-			userData.limits.isReelTrackingEnabled == false
-		) {
-			return res.status(400).json({
-				status: 400,
-				message: 'Feature not available',
-				data: {
-					success: false,
-					message:
-						'This feature is not available for everyone',
-				},
-			});
-		} else if (
-			userData.limits.maxReelsPerMonth <=
-			userData.activity.reels
-		) {
-			return res.status(400).json({
-				status: 400,
-				message: 'Tracking limit reached',
-				data: {
-					success: false,
-					message:
-						'You have reached your reel tracking limit',
-				},
-			});
-		}
-	}
+// 	if (userData && userData.email != email) {
+// 		return res.status(400).json({
+// 			status: 400,
+// 			message:
+// 				'Invalid email - Impersonification attempt detected',
+// 		});
+// 	} else {
+// 		if (
+// 			userData.limits.isReelTrackingEnabled == false
+// 		) {
+// 			return res.status(400).json({
+// 				status: 400,
+// 				message: 'Feature not available',
+// 				data: {
+// 					success: false,
+// 					message:
+// 						'This feature is not available for everyone',
+// 				},
+// 			});
+// 		} else if (
+// 			userData.limits.maxReelsPerMonth <=
+// 			userData.activity.reels
+// 		) {
+// 			return res.status(400).json({
+// 				status: 400,
+// 				message: 'Tracking limit reached',
+// 				data: {
+// 					success: false,
+// 					message:
+// 						'You have reached your reel tracking limit',
+// 				},
+// 			});
+// 		}
+// 	}
 
-	const isReelAvailable = await TrackReel.findOne({
-		shortcode: shortcode,
-		userEmail: email,
-	});
+// 	const isReelAvailable = await TrackReel.findOne({
+// 		shortcode: shortcode,
+// 		userEmail: email,
+// 	});
 
-	if (isReelAvailable) {
-		return res.status(400).json({
-			status: 400,
-			message: 'Reel already Exist',
-			data: {
-				success: false,
-				message: 'Reel already exist in your account',
-			},
-		});
-	}
+// 	if (isReelAvailable) {
+// 		return res.status(400).json({
+// 			status: 400,
+// 			message: 'Reel already Exist',
+// 			data: {
+// 				success: false,
+// 				message: 'Reel already exist in your account',
+// 			},
+// 		});
+// 	}
 
-	const currentDate = epochCurrent('ms');
-	const endDateInEpoch = addToEpoch(
-		totalIterations
-	);
+// 	const currentDate = epochCurrent('ms');
+// 	const endDateInEpoch = addToEpoch(
+// 		totalIterations
+// 	);
 
-	const thumbnailNew =
-		await newThumbnail(thumbnail);
+// 	const thumbnailNew =
+// 		await newThumbnail(thumbnail);
 
-	const fileName = `${email}/${shortcode}`;
+// 	const fileName = `${email}/${shortcode}`;
 
-	const dataSpreadSheet = await createSpreadSheet(
-		fileName,
-		email
-	);
+// 	const dataSpreadSheet = await createSpreadSheet(
+// 		fileName,
+// 		email
+// 	);
 
-	console.log(dataSpreadSheet);
+// 	console.log(dataSpreadSheet);
 
-	if (dataSpreadSheet.status == 400) {
-		return res.status(400).json({
-			status: 400,
-			message: 'Error creating spreadsheet',
-			data: {
-				success: false,
-				message: 'Error creating spreadsheet',
-			},
-		});
-	}
+// 	if (dataSpreadSheet.status == 400) {
+// 		return res.status(400).json({
+// 			status: 400,
+// 			message: 'Error creating spreadsheet',
+// 			data: {
+// 				success: false,
+// 				message: 'Error creating spreadsheet',
+// 			},
+// 		});
+// 	}
 
-	const spreadsheetUrl =
-		dataSpreadSheet.spreadsheetUrl;
+// 	const spreadsheetUrl =
+// 		dataSpreadSheet.spreadsheetUrl;
 
-	const data = {
-		id: endDateInEpoch,
-		shortcode: shortcode,
-		uploadDate: uploadDate,
-		uploadedBy: username,
-		startDate: currentDate,
-		endDate: endDateInEpoch,
-		views: views,
-		likes: likes,
-		thumbnail: thumbnailNew.secure_url,
-		plays: plays,
-		reelUrl: `https://www.instagram.com/p/${shortcode}`,
-		title: title,
-		userEmail: email,
-		totalIterations: totalIterations,
-		checkedAt: currentDate,
-		updatedAt: currentDate,
-		iterationsCompleted: 0,
-		status: 'pending',
-		spreadsheetUrl: spreadsheetUrl,
-		debugLog: 'null',
-	};
+// 	const data = {
+// 		id: endDateInEpoch,
+// 		shortcode: shortcode,
+// 		uploadDate: uploadDate,
+// 		uploadedBy: username,
+// 		startDate: currentDate,
+// 		endDate: endDateInEpoch,
+// 		views: views,
+// 		likes: likes,
+// 		thumbnail: thumbnailNew.secure_url,
+// 		plays: plays,
+// 		reelUrl: `https://www.instagram.com/p/${shortcode}`,
+// 		title: title,
+// 		userEmail: email,
+// 		totalIterations: totalIterations,
+// 		checkedAt: currentDate,
+// 		updatedAt: currentDate,
+// 		iterationsCompleted: 0,
+// 		status: 'pending',
+// 		spreadsheetUrl: spreadsheetUrl,
+// 		debugLog: 'null',
+// 	};
 
-	const newReel = await TrackReel.create(data);
-	const user = await User.findOneAndUpdate(
-		{
-			email: email,
-		},
-		{
-			$inc: {
-				'activity.reels': 1,
-				'limits.dailyReelCount': 1,
-			},
-		},
-		{
-			new: true,
-		}
-	);
+// 	const newReel = await TrackReel.create(data);
+// 	const user = await User.findOneAndUpdate(
+// 		{
+// 			email: email,
+// 		},
+// 		{
+// 			$inc: {
+// 				'activity.reels': 1,
+// 				'limits.dailyReelCount': 1,
+// 			},
+// 		},
+// 		{
+// 			new: true,
+// 		}
+// 	);
 
-	if (newReel && user) {
-		return res.status(200).json({
-			status: 200,
-			message: 'Reel Scheduled',
-			data: {
-				success: true,
-				message: 'Reel scheduled successfully',
-			},
-		});
-	} else {
-		return res.status(400).json({
-			status: 400,
-			message: 'Error Occured',
-			data: {
-				success: false,
-				message:
-					'Error scheduling reel, please try again',
-			},
-		});
-	}
-};
+// 	if (newReel && user) {
+// 		return res.status(200).json({
+// 			status: 200,
+// 			message: 'Reel Scheduled',
+// 			data: {
+// 				success: true,
+// 				message: 'Reel scheduled successfully',
+// 			},
+// 		});
+// 	} else {
+// 		return res.status(400).json({
+// 			status: 400,
+// 			message: 'Error Occured',
+// 			data: {
+// 				success: false,
+// 				message:
+// 					'Error scheduling reel, please try again',
+// 			},
+// 		});
+// 	}
+// };
 
-export const UpdateSingleReel = async (
-	req,
-	res
-) => {
-	const { shortcode, email } = req.body;
+// export const UpdateSingleReel = async (
+// 	req,
+// 	res
+// ) => {
+// 	const { shortcode, email } = req.body;
 
-	let spreadsheetUrl;
-	let reelId;
+// 	let spreadsheetUrl;
+// 	let reelId;
 
-	const response =
-		await getReelMetadata(shortcode);
+// 	const response =
+// 		await getReelMetadata(shortcode);
 
-	if (response) {
-		console.log('Step 1 - Got Reel Data');
-		const dateInEpoch = epochCurrent('ms');
-		try {
-			const reel = await TrackReel.findOne({
-				shortcode: shortcode,
-				userEmail: email,
-			});
+// 	if (response) {
+// 		console.log('Step 1 - Got Reel Data');
+// 		const dateInEpoch = epochCurrent('ms');
+// 		try {
+// 			const reel = await TrackReel.findOne({
+// 				shortcode: shortcode,
+// 				userEmail: email,
+// 			});
 
-			if (reel) {
-				reelId = reel.id;
-				reel.views =
-					response.data.graphql.shortcode_media.video_view_count;
-				reel.likes =
-					response.data.graphql.shortcode_media.edge_media_preview_like.count;
-				reel.plays =
-					response.data.graphql.shortcode_media.video_play_count;
-				reel.checkedAt = dateInEpoch;
-				reel.iterationsCompleted =
-					reel.iterationsCompleted + 1;
-				reel.updatedAt = dateInEpoch;
-				await reel.save();
+// 			if (reel) {
+// 				reelId = reel.id;
+// 				reel.views =
+// 					response.data.graphql.shortcode_media.video_view_count;
+// 				reel.likes =
+// 					response.data.graphql.shortcode_media.edge_media_preview_like.count;
+// 				reel.plays =
+// 					response.data.graphql.shortcode_media.video_play_count;
+// 				reel.checkedAt = dateInEpoch;
+// 				reel.iterationsCompleted =
+// 					reel.iterationsCompleted + 1;
+// 				reel.updatedAt = dateInEpoch;
+// 				await reel.save();
 
-				const spreadsheetId = reel.spreadsheetUrl
-					.split('/d/')[1]
-					.split('/')[0];
+// 				const spreadsheetId = reel.spreadsheetUrl
+// 					.split('/d/')[1]
+// 					.split('/')[0];
 
-				// Spreadsheet sheet updation (Starts)
+// 				// Spreadsheet sheet updation (Starts)
 
-				console.log('Step 3 - Updating Spreadsheet');
-				const serviceAccountAuth =
-					new google.auth.GoogleAuth({
-						credentials: googleAuthFile,
-						scopes: [
-							'https://www.googleapis.com/auth/drive',
-						],
-					});
+// 				console.log('Step 3 - Updating Spreadsheet');
+// 				const serviceAccountAuth =
+// 					new google.auth.GoogleAuth({
+// 						credentials: googleAuthFile,
+// 						scopes: [
+// 							'https://www.googleapis.com/auth/drive',
+// 						],
+// 					});
 
-				const doc = new GoogleSpreadsheet(
-					spreadsheetId,
-					serviceAccountAuth
-				);
+// 				const doc = new GoogleSpreadsheet(
+// 					spreadsheetId,
+// 					serviceAccountAuth
+// 				);
 
-				await doc.loadInfo();
-				console.log(doc.title);
+// 				await doc.loadInfo();
+// 				console.log(doc.title);
 
-				let sheet =
-					doc.sheetsByTitle[
-						`${reel.shortcode}/${reel.title}`
-					];
+// 				let sheet =
+// 					doc.sheetsByTitle[
+// 						`${reel.shortcode}/${reel.title}`
+// 					];
 
-				if (!sheet) {
-					sheet = await doc.addSheet({
-						title: `${reel.shortcode}`,
-						headerValues: [
-							'Check Count',
-							'Username',
-							'Post Url',
-							'Plays',
-							'Views',
-							'Likes',
-							'End Date',
-							'Start Date',
-							'Total Count',
-							'Checked At',
-							'Id',
-						],
-					});
-				}
+// 				if (!sheet) {
+// 					sheet = await doc.addSheet({
+// 						title: `${reel.shortcode}`,
+// 						headerValues: [
+// 							'Check Count',
+// 							'Username',
+// 							'Post Url',
+// 							'Plays',
+// 							'Views',
+// 							'Likes',
+// 							'End Date',
+// 							'Start Date',
+// 							'Total Count',
+// 							'Checked At',
+// 							'Id',
+// 						],
+// 					});
+// 				}
 
-				const sheetRes = await sheet.addRow({
-					'Check Count': reel.iterationsCompleted,
-					Username: reel.uploadedBy,
-					'Post Url': reel.reelUrl,
-					Plays: reel.plays,
-					Views: reel.views,
-					Likes: reel.likes,
-					'End Date': epochToDate(reel.endDate),
-					'Start Date': epochToDate(reel.startDate),
-					'Total Count': reel.totalIterations,
-					'Checked At': epochToDate(reel.checkedAt),
-					Id: reel.id,
-				});
+// 				const sheetRes = await sheet.addRow({
+// 					'Check Count': reel.iterationsCompleted,
+// 					Username: reel.uploadedBy,
+// 					'Post Url': reel.reelUrl,
+// 					Plays: reel.plays,
+// 					Views: reel.views,
+// 					Likes: reel.likes,
+// 					'End Date': epochToDate(reel.endDate),
+// 					'Start Date': epochToDate(reel.startDate),
+// 					'Total Count': reel.totalIterations,
+// 					'Checked At': epochToDate(reel.checkedAt),
+// 					Id: reel.id,
+// 				});
 
-				console.log(
-					'Step 4 - Spreadsheet Updated' + sheetRes
-				);
+// 				console.log(
+// 					'Step 4 - Spreadsheet Updated' + sheetRes
+// 				);
 
-				if (sheetRes) {
-					res.status(200).json({
-						status: 200,
-						message: 'Reel updated successfully',
-						spreadsheetUrl: spreadsheetUrl,
-					});
-				} else {
-					res.status(400).json({
-						status: 400,
-						message: 'Error updating reel',
-					});
-				}
-			} else {
-				res.status(400).json({
-					status: 400,
-					message: 'Reel not found',
-				});
-			}
-		} catch (error) {
-			console.log(error);
-			res.status(400).json({
-				status: 400,
-				message: error.toString(),
-			});
-		}
-	}
-};
+// 				if (sheetRes) {
+// 					res.status(200).json({
+// 						status: 200,
+// 						message: 'Reel updated successfully',
+// 						spreadsheetUrl: spreadsheetUrl,
+// 					});
+// 				} else {
+// 					res.status(400).json({
+// 						status: 400,
+// 						message: 'Error updating reel',
+// 					});
+// 				}
+// 			} else {
+// 				res.status(400).json({
+// 					status: 400,
+// 					message: 'Reel not found',
+// 				});
+// 			}
+// 		} catch (error) {
+// 			console.log(error);
+// 			res.status(400).json({
+// 				status: 400,
+// 				message: error.toString(),
+// 			});
+// 		}
+// 	}
+// };
 
 export const removeReel = async (req, res) => {
-	const { shortcode, email } = req.body;
+	const { uniqueId, email } = req.body;
 	const token = req.userId;
 
-	if (!shortcode || !email) {
+	if (!uniqueId || !email) {
 		return res.status(400).json({
 			status: 400,
 			message: 'Please recheck request body fields',
@@ -796,95 +797,89 @@ export const removeReel = async (req, res) => {
 	if (userData) {
 		const reel = await TrackReel.find({
 			userEmail: email,
-			shortcode: shortcode,
+			id: uniqueId,
 		});
 
 		if (reel.length == 0) {
 			return res.status(400).json({
 				status: 400,
-				message: 'Reel not found',
+				message: 'Batch not found',
 			});
 		}
 
-		if (reel[0].spreadsheetUrl != 'null') {
-			let spreadsheetId = reel[0].spreadsheetUrl
-				.split('/d/')[1]
-				.split('/')[0];
-
-			const resp = await deleteSpreadSheet(
-				spreadsheetId
-			);
-
-			if (resp.status == 200) {
-				console.log(
-					`Spreadsheet ${reel[0].shortcode}/${reel[0].title} deleted`
-				);
-				const updateUserData =
-					await User.findOneAndUpdate(
-						{
-							email: email,
-						},
-						{
-							$inc: {
-								'limits.dailyReelCount': -1,
-							},
-						},
-						{
-							new: true,
-						}
-					);
-				const deleteReel = await TrackReel.deleteOne({
-					shortcode: shortcode,
-					userEmail: email,
-				});
-
-				console.log(deleteReel);
-				console.log(updateUserData);
-
-				if (updateUserData && deleteReel) {
-					return res.status(200).json({
-						status: 200,
-						message: 'Reel deleted successfully',
-						shortcode: shortcode,
-					});
-				}
-			} else {
-				return res.status(400).json({
-					status: 400,
-					message: 'Error deleting reel',
-					spreadsheetMessage: resp.message,
-				});
-			}
-		} else {
-			const updateUserData =
-				await User.findOneAndUpdate(
-					{
-						email: email,
-					},
-					{
-						$inc: {
-							'limits.dailyReelCount': -1,
-						},
-					},
-					{
-						new: true,
-					}
-				);
-			const deleteReel = await TrackReel.deleteOne({
-				shortcode: shortcode,
-				userEmail: email,
-			});
-
-			console.log(deleteReel);
-			console.log(updateUserData);
-
-			if (updateUserData && deleteReel) {
+		TrackReel.deleteOne({
+			userEmail: email,
+			id: uniqueId,
+		})
+			.then((data) => {
 				return res.status(200).json({
 					status: 200,
-					message: 'Reel deleted successfully',
-					shortcode: shortcode,
+					message: 'Batch removed successfully',
 				});
-			}
-		}
+			})
+			.catch((error) => {
+				console.error(error);
+				return res.status(400).json({
+					status: 400,
+					message: 'Error removing Batch',
+				});
+			});
 	}
+};
+
+export const trackreels = async (req, res) => {
+	const { email, title } = req.body;
+	const { filename, originalname } = req.file;
+
+	if (!filename || !email) {
+		return res.status(400).json({
+			status: 400,
+			message: 'Please recheck request body fields',
+		});
+	}
+
+	const currentTime = epochCurrent('ms');
+
+	TrackReel.create({
+		id: currentTime,
+		userEmail: email,
+		title: title,
+		thumbnail: 'null',
+		totalIterations: 0,
+		iterationsCompleted: 0,
+		dateCreated: currentTime,
+		status: 'pending',
+		debugLog: 'null',
+		fileUrl: 'null',
+	})
+		.then((data) => {
+			console.log(
+				`File ${originalname} uploaded successfully`
+			);
+			setImmediate(() => {
+				fetchReelData(filename, email, currentTime)
+					.then((data) => {
+						console.log(
+							'Data fetched successfully:',
+							data
+						);
+					})
+					.catch((error) => {
+						console.error(
+							'Error fetching data:',
+							error
+						);
+					});
+			});
+		})
+		.catch((error) => {
+			console.error(
+				`Error uploading reel ${originalname}: ${error}`
+			);
+		});
+
+	res.status(200).json({
+		status: 200,
+		message: `Fetching Scheduled Successfully for ${originalname}`,
+	});
 };

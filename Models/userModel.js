@@ -48,8 +48,8 @@ const limitsDefault = {
 	dailySearchCount: 0,
 	lastSearchReset: newResetDate,
 	isRequestScanningEnabled: true,
-	maxScanPerMonth: 300,
-	maxScanPerDay: 10,
+	maxScanPerMonth: 3,
+	maxScanPerDay: 3,
 	dailyScanCount: 0,
 	lastScanReset: newResetDate,
 };
@@ -97,6 +97,7 @@ const userSchema = new mongoose.Schema(
 				isExtensionEnabled: false,
 				maxUsernames: 1,
 				extensionUsernames: [],
+				creditsPerScan: 10,
 			},
 		},
 		limits: {

@@ -81,3 +81,27 @@ export const newThumbnail = (url) => {
 		return Promise.reject(error);
 	}
 };
+
+export const uploadExcel = (url) => {
+	try {
+		return cloudinary.uploader.upload(
+			url,
+			{
+				resource_type: 'raw',
+				folder: 'Excels',
+				use_filename: false,
+			},
+			(error, result) => {
+				if (result) {
+					return result;
+				} else {
+					console.log(error);
+					return Promise.reject(error);
+				}
+			}
+		);
+	} catch (error) {
+		console.log(error);
+		return Promise.reject(error);
+	}
+};

@@ -18,8 +18,9 @@ const port = vars.port;
 connectDB();
 
 const RequestUrl = [
-	'http://172.28.112.1:5174',
 	'https://www.igloaded.com',
+	'http://localhost:5173',
+	'http://localhost:5011',
 ];
 
 app.set('trust proxy', 1);

@@ -132,23 +132,37 @@ export const checkRequest = async (req, res) => {
 	const isScanAllowed =
 		await isScanningAllowed(token);
 
+	const { creditsPerScan } = user.plan;
+
+	let isCreditRequired = false;
+
 	if (!isScanAllowed.success) {
 		return res.status(401).json({
 			status: 401,
 			message: isScanAllowed.message,
 		});
 	}
+
+	if (
+		user.limits.dailyScanCount >=
+		user.limits.maxScanPerMonth
+	) {
+		isCreditRequired = true;
+	}
+
 	if (
 		isScanAllowed.success &&
-		isScanAllowed.credits < 100
+		isScanAllowed.credits < creditsPerScan &&
+		user.limits.dailyScanCount >=
+			user.limits.maxScanPerMonth
 	) {
 		return res.status(401).json({
 			status: 401,
 			message: 'Insufficient credits!',
-			messageDetail:
-				'Insufficient credits (less than 100)',
+			messageDetail: `You need ${creditsPerScan} credits to check requests`,
 		});
 	}
+
 	if (checkSession(username)) {
 		try {
 			const session = getSession(username);
@@ -185,41 +199,66 @@ export const checkRequest = async (req, res) => {
 			user.markModified('activity');
 			user.markModified('limits');
 			const resp = await user.save();
-
 			const epochTime = epochCurrent('ms');
 
-			let dataObject = {
-				notifyUser: false,
-				email: user.email,
-				amount: 100,
-				title: 'Instagram Request Check',
-				description:
-					'Instagram Request Check for @' + username,
-				transactionType: 'debit',
-				transactionData: {
-					tax: 0,
-					discount: 0,
-					total: 100,
-					price: 100,
-					credits: 100,
-					gatewayCharges: 0,
-				},
-				orderId: epochTime,
-			};
+			if (isCreditRequired) {
+				let dataObject = {
+					notifyUser: false,
+					email: user.email,
+					amount: creditsPerScan,
+					title: 'Instagram Request Check',
+					description:
+						'Instagram Request Check for @' + username,
+					transactionType: 'debit',
+					transactionData: {
+						tax: 0,
+						discount: 0,
+						total: creditsPerScan,
+						price: creditsPerScan,
+						credits: creditsPerScan,
+						gatewayCharges: 0,
+					},
+					orderId: epochTime,
+				};
 
-			let flag = 0;
+				let flag = 0;
 
-			await addTransaction(dataObject)
-				.then((resp) => {
-					if (resp.status == 'ok') {
-						flag = 1;
-					}
-				})
-				.catch((err) => {
-					console.log(err);
-				});
+				await addTransaction(dataObject)
+					.then((resp) => {
+						if (resp.status == 'ok') {
+							flag = 1;
+						}
+					})
+					.catch((err) => {
+						console.log(err);
+					});
 
-			if (resp && flag == 1) {
+				if (resp && flag == 1) {
+					res.status(200).json({
+						status: 200,
+						data: {
+							username,
+							full_name,
+							is_verified,
+							profile_pic_url,
+							follower_count,
+							following_count,
+							media_count,
+							is_private,
+							request_count:
+								pendingFollowRequests.length,
+							request_list: pendingFollowRequests,
+						},
+					});
+				} else {
+					res.status(400).json({
+						status: 400,
+						message: 'Error checking request',
+						info:
+							'Error occurred (Check Request Route)',
+					});
+				}
+			} else {
 				res.status(200).json({
 					status: 200,
 					data: {
@@ -234,12 +273,6 @@ export const checkRequest = async (req, res) => {
 						request_count: pendingFollowRequests.length,
 						request_list: pendingFollowRequests,
 					},
-				});
-			} else {
-				res.status(400).json({
-					status: 400,
-					message: 'Error checking request',
-					info: 'Error occurred (Check Request Route)',
 				});
 			}
 		} catch (error) {
