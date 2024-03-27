@@ -66,7 +66,7 @@ router.use(limitTrackRequest);
 router.get('/removecors', RemoveCors);
 
 router.use(perFormPlanReset);
-router.use(performLimitReset);
+// router.use(performLimitReset);
 
 router.post('/login', loginUser);
 router.post('/logout', logout);

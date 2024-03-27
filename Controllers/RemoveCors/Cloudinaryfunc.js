@@ -59,13 +59,14 @@ export const RemoveCors = async (
 	}
 };
 
-export const newThumbnail = (url) => {
+export const newThumbnail = (url, filename) => {
 	try {
 		return cloudinary.uploader.upload(
 			url,
 			{
 				folder: 'ThumbnailImages',
-				use_filename: false,
+				public_id: filename,
+				use_filename: true,
 			},
 			(error, result) => {
 				if (result) {

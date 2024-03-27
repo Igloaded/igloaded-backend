@@ -12,8 +12,8 @@ import {
 import User from '../../Models/userModel.js';
 import TrackReel from '../../Models/trackReelModel.js';
 import {
-	RemoveCors,
 	uploadExcel,
+	newThumbnail,
 } from '../RemoveCors/Cloudinaryfunc.js';
 import { sendReelCompleteMail } from '../SendEmail/sendEmail.js';
 
@@ -121,7 +121,7 @@ export const fetchReelData = async (
 			}
 
 			await new Promise((resolve) =>
-				setTimeout(resolve, 1000)
+				setTimeout(resolve, 2000)
 			);
 
 			const response =
@@ -162,7 +162,7 @@ export const fetchReelData = async (
 						await TrackReel.findOne({
 							id: uniqueId,
 						});
-					RemoveCors(
+					newThumbnail(
 						response.display_url,
 						`${uniqueId}-${shortcode}`
 					)
@@ -251,7 +251,6 @@ export const fetchReelData = async (
 				console.log(
 					'Excel File processed successfully'
 				);
-
 				sendReelCompleteMail({
 					email,
 					title: uniqueId,
