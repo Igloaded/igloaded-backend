@@ -21,6 +21,7 @@ const RequestUrl = [
 	'https://www.igloaded.com',
 	'http://localhost:5173',
 	'http://localhost:5011',
+	'http://192.168.1.107:5173',
 ];
 
 app.set('trust proxy', 1);

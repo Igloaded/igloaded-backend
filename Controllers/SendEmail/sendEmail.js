@@ -15,6 +15,7 @@ const mg = mailgun({
 });
 
 export const sendMail = (req, res) => {
+	console.log('Inside Mail');
 	const { email } = req.body;
 	const otp = Math.random().toString().slice(-4);
 	const encryptedOtp = bcrypt.hashSync(otp, 10);

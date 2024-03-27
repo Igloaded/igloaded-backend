@@ -167,6 +167,7 @@ export const fetchReelData = async (
 						`${uniqueId}-${shortcode}`
 					)
 						.then(async (result) => {
+							console.log(result);
 							updateThumbnail.thumbnail =
 								result.secure_url;
 							await updateThumbnail.save();

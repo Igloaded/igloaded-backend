@@ -296,8 +296,12 @@ export const findUser = async (req, res) => {
 		const { email } = req.query;
 		const user = await User.findOne({ email });
 		if (!user) {
-			req.body.email = email;
-			sendMailTest(req, res);
+			return res.status(200).json({
+				status: 'ok',
+				message: 'User not found',
+				userExist: false,
+				email: email,
+			});
 		} else {
 			return res.status(400).json({
 				status: 'error',
