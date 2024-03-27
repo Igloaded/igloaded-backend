@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { vars } from '../../secrets.js';
 import axios from 'axios';
+import { basename, extname } from 'path';
 
 cloudinary.config({
 	cloud_name: vars.cloudName,
@@ -105,4 +106,103 @@ export const uploadExcel = (url) => {
 		console.log(error);
 		return Promise.reject(error);
 	}
+};
+
+export const deleteThumbnail = async (
+	imageUrl
+) => {
+	return new Promise((resolve, reject) => {
+		if (
+			!imageUrl ||
+			imageUrl ==
+				'https://res.cloudinary.com/dgbqsbo7g/image/upload/v1711522015/StaticAssests/loading_i8aaxn.gif'
+		) {
+			reject({
+				status: 400,
+				message: 'Something went wrong',
+				error:
+					'No image url provided / Default image',
+			});
+		}
+		const url = new URL(imageUrl);
+		const pathname = url.pathname;
+		const publicId = basename(
+			pathname,
+			extname(pathname)
+		);
+		try {
+			cloudinary.uploader
+				.destroy(`ThumbnailImages/${publicId}`, {
+					resource_type: 'image',
+				})
+				.then((result) => {
+					resolve({
+						status: 200,
+						message: 'Image removed',
+						result: result,
+					});
+				})
+				.catch((error) => {
+					reject({
+						status: 400,
+						message: 'Something went wrong',
+						error: error,
+					});
+				});
+		} catch (error) {
+			reject({
+				status: 400,
+				message: 'Something went wrong',
+				error: error,
+			});
+		}
+	});
+};
+
+export const removeExcelFile = async (
+	fileUrl
+) => {
+	return new Promise((resolve, reject) => {
+		if (!fileUrl) {
+			reject({
+				status: 400,
+				message: 'Something went wrong',
+				error: 'No File url provided',
+			});
+		}
+		const url = new URL(fileUrl);
+		const pathname = url.pathname;
+		const publicId = basename(
+			pathname,
+			extname(pathname)
+		);
+		try {
+			cloudinary.uploader.destroy(
+				`Excels/${publicId}.xlsx`,
+				{ resource_type: 'raw' },
+				(error, result) => {
+					if (error) {
+						console.log(error);
+						reject({
+							status: 400,
+							message: 'Something went wrong',
+							error: error,
+						});
+					} else {
+						resolve({
+							status: 200,
+							message: 'Excel File removed',
+							result: result,
+						});
+					}
+				}
+			);
+		} catch (error) {
+			reject({
+				status: 400,
+				message: 'Something went wrong',
+				error: error,
+			});
+		}
+	});
 };
