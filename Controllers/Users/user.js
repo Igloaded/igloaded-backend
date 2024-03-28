@@ -392,6 +392,15 @@ export const forgetPassword = async (
 			);
 			user.password = hash;
 			await user.save();
+			passwordChangedMail(email, user.name)
+				.then((resp) => {
+					if (resp.status == 200) {
+						console.log('Password Changed Mail sent');
+					}
+				})
+				.catch((err) => {
+					console.log(err);
+				});
 			return res.status(200).json({
 				status: 'ok',
 				message: 'Password reset successfully',

@@ -1,7 +1,3 @@
-
-
-
-
 const isAdmin = async (req, res, next) => {
 	try {
 		req.userId = null;
@@ -35,7 +31,7 @@ const isAdmin = async (req, res, next) => {
 				actionRequired: 'login',
 			});
 		} else {
-			console.log(error.message + 'here');
+			console.log(error.message);
 		}
 	}
 };

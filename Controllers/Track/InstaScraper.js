@@ -47,7 +47,6 @@ export const InstaScript = async (query) => {
 						'Video is private'
 					)
 				) {
-					console.log('here');
 					resolve({
 						error:
 							'Private Account or Story Unavailable',
@@ -58,30 +57,29 @@ export const InstaScript = async (query) => {
 					const $ = cheerio.load(html);
 					let data = [];
 
-					$('.download-box > li').each(function (
-						i,
-						el
-					) {
-						let objectData = {};
-						let imgSrc = $(this)
-							.find('.download-items__thumb > img')
-							.attr('src');
-
-						if (imgSrc.includes('gif')) {
-							imgSrc = $(this)
+					$('.download-box > li').each(
+						function (i, el) {
+							let objectData = {};
+							let imgSrc = $(this)
 								.find('.download-items__thumb > img')
-								.attr('data-src');
+								.attr('src');
+
+							if (imgSrc.includes('gif')) {
+								imgSrc = $(this)
+									.find('.download-items__thumb > img')
+									.attr('data-src');
+							}
+
+							let linkHref = $(this)
+								.find('.download-items__btn > a')
+								.attr('href');
+
+							objectData['count'] = i;
+							objectData['thumbnail'] = imgSrc;
+							objectData['video'] = linkHref;
+							data.push(objectData);
 						}
-
-						let linkHref = $(this)
-							.find('.download-items__btn > a')
-							.attr('href');
-
-						objectData['count'] = i;
-						objectData['thumbnail'] = imgSrc;
-						objectData['video'] = linkHref;
-						data.push(objectData);
-					});
+					);
 					resolve(data);
 				} else {
 					resolve({ error: 'No Data Found' });

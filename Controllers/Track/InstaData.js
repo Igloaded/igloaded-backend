@@ -8,11 +8,7 @@ import {
 import { InstaScript } from './InstaScraper.js';
 import TrackReel from '../../Models/trackReelModel.js';
 import User from '../../Models/userModel.js';
-import {
-	addToEpoch,
-	epochCurrent,
-	epochToDate,
-} from '../../Reusables/getTimestamp.js';
+import { epochCurrent } from '../../Reusables/getTimestamp.js';
 import { isImageAvailable } from '../RemoveCors/Cloudinaryfunc.js';
 import { fetchReelData } from './Commonfile.js';
 
@@ -28,6 +24,7 @@ export const getReelMetadata = async (
 	};
 	try {
 		const response = await axios.request(options);
+		console.log(response.data);
 		return response.data;
 	} catch (error) {
 		if (
@@ -69,7 +66,6 @@ const getStoryData = async (username) => {
 };
 
 const getProfileMetadata = async (shortcode) => {
-	console.log(shortcode);
 	const options = {
 		method: 'GET',
 		url: `https://apiprofi.com/api/info_username/?user=${shortcode}`,
@@ -80,6 +76,7 @@ const getProfileMetadata = async (shortcode) => {
 
 	try {
 		const response = await axios.request(options);
+		console.log(response.data.user);
 		return response.data.user;
 	} catch (error) {
 		console.error(error);
@@ -94,6 +91,12 @@ export const getReelData = async (req, res) => {
 		const urlData = [];
 		const reelData =
 			await getReelMetadata(shortcode);
+		if (reelData.message == 'Page not found') {
+			return res.status(400).json({
+				status: 400,
+				message: 'No reel found',
+			});
+		}
 		if (reelData.status == 400) {
 			return res.status(400).json({
 				status: 400,
@@ -298,6 +301,28 @@ export const getProfileData = async (
 	}
 	const response =
 		await getProfileMetadata(username);
+
+	if (!response) {
+		return res.status(400).json({
+			status: 400,
+			message: 'No user found',
+		});
+	}
+
+	if (response.message == 'Page not found') {
+		return res.status(400).json({
+			status: 400,
+			message: 'No user found',
+		});
+	}
+
+	if (response.message == 'Page not found') {
+		return res.status(400).json({
+			status: 400,
+			message: 'No user found',
+		});
+	}
+
 	if (
 		response.error_code ==
 		'IgExactUserNotFoundError'
@@ -309,13 +334,6 @@ export const getProfileData = async (
 	}
 
 	if (response.error_code == 'ERR_BAD_RESPONSE') {
-		return res.status(400).json({
-			status: 400,
-			message: 'No user found',
-		});
-	}
-
-	if (response == undefined) {
 		return res.status(400).json({
 			status: 400,
 			message: 'No user found',
@@ -391,6 +409,12 @@ export const getStory = async (req, res) => {
 	}
 	const response =
 		await getProfileMetadata(username);
+	if (!response) {
+		return res.status(400).json({
+			status: 400,
+			message: 'No user found',
+		});
+	}
 	if (
 		response.error_code ==
 		'IgExactUserNotFoundError'

@@ -19,8 +19,8 @@ connectDB();
 
 const RequestUrl = [
 	'https://www.igloaded.com',
+	'https://igloaded.com',
 	'http://localhost:5173',
-	'http://localhost:5011',
 	'http://192.168.1.107:5173',
 ];
 
@@ -83,7 +83,11 @@ app.use(
 );
 
 app.get('/', (req, res) => {
-	res.send('Server is Up and running...');
+	res.status(200).json({
+		status: 200,
+		message: 'IGLoaded API | Running',
+		headers: req.headers,
+	});
 });
 
 app.use('/user', usersPath);
@@ -93,5 +97,3 @@ app.use('/admin', adminPath);
 app.listen(port || 5696, () => {
 	console.log(`Server started on port ${port}`);
 });
-
-// export const handler = ServerlessHttp(app);
